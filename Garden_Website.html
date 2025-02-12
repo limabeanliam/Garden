@@ -7,14 +7,18 @@
     <style>
         body {
             margin: 0;
-            background-color: white;
+            font-family: Arial, sans-serif;
+            background-color: #F9F6E8;
+            color: #333;
         }
+
         .video-container {
             position: relative;
             width: 100%;
             height: 100vh;
             overflow: hidden;
         }
+
         .video-container video {
             position: absolute;
             top: 50%;
@@ -27,19 +31,39 @@
 
         .logo {
             position: absolute;
-            top: -30px;
+            top: -20px;
             left: 15px;
             padding: 10px;
-            z-index: 10; /* Ensure the logo is on top of the video */
+            z-index: 10;
         }
 
         .logo img {
-            max-width: 300px; /* Set a size to prevent it from being invisible */
+            max-width: 300px;
             height: auto;
+        }
+
+        .image-sequence {
+            position: relative;
+            width: 100%;
+            height: 400vh; /* Ensures scrolling space */
+        }
+
+        .image-sequence img {
+            position: absolute;
+            top: -10vh;  /* Moves images relative to window height */
+            left: -2vw !important;  /* Moves images relative to window width */
+            width: 35vw !important; /* Makes image size responsive */
+            height: auto;
+            z-index: 10;
+        }
+
+        .spacer {
+            height: 50vh; /* Adds extra blank space */
         }
     </style>
 </head>
 <body>
+    <!-- Fullscreen video section -->
     <div class="video-container">
         <video autoplay muted loop>
             <source src="https://garden-reel.s3.us-east-2.amazonaws.com/gardenReelRough.mp4" type="video/mp4">
@@ -47,9 +71,89 @@
         </video>
     </div>
 
-    <!-- Logo container inside the body -->
+    <!-- Logo container -->
     <div class="logo">
         <img src="https://garden-reel.s3.us-east-2.amazonaws.com/Garden_White.png" alt="Logo">
     </div>
+
+    <!-- Image sequence scroll-triggered animation -->
+    <div class="image-sequence" id="image-sequence">
+        <!-- Images will be loaded here dynamically -->
+    </div>
+
+    <!-- Spacer for blank space at the bottom of the page -->
+    <div class="spacer"></div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const imageSequence = document.getElementById("image-sequence");
+
+            // AWS S3 Image URLs (replace with actual URLs)
+            const awsBaseUrl = "https://garden-reel.s3.us-east-2.amazonaws.com/Holo_Temp/";
+            const frameCount = 12; // Number of images
+            const images = [];
+            let lastImageIndex = -1;
+            let isUpdating = false;
+
+            // Dynamically load images and preload them
+            for (let i = 0; i < frameCount; i++) {
+                const img = new Image();
+                img.src = `${awsBaseUrl}${String(i).padStart(4, '0')}.png`;
+                img.alt = `Frame ${i}`;
+                img.style.opacity = "0";
+                img.style.position = "absolute";
+                img.style.left = "10px";
+                img.style.width = "700px";
+                img.style.zIndex = "10";
+
+                img.onload = () => console.log(`Loaded: ${img.src}`);
+                img.onerror = () => console.error(`Failed to load: ${img.src}`);
+
+                imageSequence.appendChild(img);
+                images.push(img);
+            }
+
+            // Ensure first image is visible immediately
+            if (images.length > 0) {
+                images[0].style.opacity = "1";
+            }
+
+            function updateFrame() {
+                if (isUpdating) return;
+                isUpdating = true;
+
+                requestAnimationFrame(() => {
+                    const scrollPosition = window.scrollY;
+                    const windowHeight = window.innerHeight;
+                    const scrollableHeight = document.body.scrollHeight - windowHeight;
+
+                    // Normalize scroll position within animation range
+                    const progress = scrollPosition / scrollableHeight * 6 ;
+
+                    // Map progress (0 to 1) to frame indices (0 to images.length - 1)
+                    let currentImageIndex = Math.floor(progress * (frameCount - 1));
+                    currentImageIndex = Math.max(0, Math.min(currentImageIndex, frameCount - 1));
+
+                    if (currentImageIndex !== lastImageIndex) {
+                        images.forEach((img, idx) => {
+                            img.style.opacity = idx === currentImageIndex ? "1" : "0";
+                        });
+                        lastImageIndex = currentImageIndex;
+                    }
+
+                    isUpdating = false;
+                });
+            }
+
+            // Optimize scroll event with passive listener
+            document.addEventListener("scroll", updateFrame, { passive: true });
+
+            // Pause video on first frame (for testing purposes)
+            const video = document.querySelector("video");
+            if (video) {
+                 video.pause(); 
+            }
+        });
+    </script>
 </body>
 </html>
